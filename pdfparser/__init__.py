@@ -1,1 +1,2 @@
 from .aeoncardpdfparser import AeonCardPdfParser
+from .rakutencardpdfparser import RaktenCardPdfParser
