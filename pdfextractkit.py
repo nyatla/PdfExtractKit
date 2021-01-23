@@ -76,6 +76,16 @@ class TextBoxTable:
         """ボックスの上端を返します。
         """
         return self.df["top"].max()
+    @property
+    def left(self):
+        """ボックスの左端を返します。
+        """
+        return self.df["left"].min()
+    @property
+    def right(self):
+        """ボックスの右端を返します。
+        """
+        return self.df["right"].max()
 
     def select(self,where,order:TextLayout=None):
         """
