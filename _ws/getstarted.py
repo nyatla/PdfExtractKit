@@ -25,19 +25,19 @@ class Point:
 
 class Segment:
     @staticmethod
-    def fromValue(xy1:Tuple[float,float],xy2:Tuple[float,float]):
-        return Segment(Point(xy1[0],xy1[1]),Point(xy2[0],xy2[1]))
-    def fromPoint(p1:Point,p2:Point):
-        return Segment(p1,p2)
-    def __init__(self,p1:Point,p2:Point):
+    def fromValue(xy0:Tuple[float,float],xy1:Tuple[float,float]):
+        return Segment(Point(xy0[0],xy0[1]),Point(xy1[0],xy1[1]))
+    def fromPoint(p0:Point,p1:Point):
+        return Segment(p0,p1)
+    def __init__(self,p0:Point,p1:Point):
+        self.p0=p0
         self.p1=p1
-        self.p2=p2
     @property
     def length(self):
         """線分の長さ
         """
-        x=(self.p1.x-self.p2.x)
-        y=(self.p1.y-self.p2.y)
+        x=(self.p0.x-self.p1.x)
+        y=(self.p0.y-self.p1.y)
         return math.sqrt(x*x+y*y)
     def segmentLineDist(self,xy:Point)->float:
         """この線分と点(x,y)の距離を計算します。
@@ -49,8 +49,8 @@ class Segment:
         def dist2(p:Point):
             return p.x**2 + p.y**2
         # Shortest distance between a line segment (p0-p1) and a point x
-        p0=self.p1
-        p1=self.p2
+        p0=self.p0
+        p1=self.p1
         z0 = Point(p1.x - p0.x, p1.y - p0.y)
         z1 = Point(xy.x - p0.x, xy.y - p0.y)
         if 0 <= dot2(z0, z1) <= dist2(z0):
@@ -58,7 +58,7 @@ class Segment:
         z2 = (xy.x - p1.x, xy.y - p1.y)
         return min(dist2(z1), dist2(z2))**.5
     # def topEdge(self):
-    #     return self.p1 if self.p1.y>self.p2.y
+    #     return self.p0 if self.p0.y>self.p1.y
     # def bottomEdge(self):
     # def leftEdge(self):
     # def rightEdge(self):
@@ -73,7 +73,7 @@ class Segment:
             segment2    2つめの線分
         """
         #4点の最遠点の組み合わせを求める
-        points:List[Point]=[segment1.p1,segment1.p2,segment2.p1,segment2.p2]
+        points:List[Point]=[segment1.p0,segment1.p1,segment2.p0,segment2.p1]
         far_point_idx=[0,0] #再遠点のインデクス
         max_f2=0
         for i in range(0,3):
@@ -97,7 +97,7 @@ class Segment:
         #最近点と再遠点セグメントの距離合計が閾値より大きければエラー
         if nf1+nf2>sidegap:
             return None
-        return Segment.fromPoint(far_segment.p1,far_segment.p2)
+        return Segment.fromPoint(far_segment.p0,far_segment.p1)
 
 
 
@@ -182,7 +182,7 @@ class Segments:
         """
         def deg(l):
             #線分の角度を計算
-            return math.degrees(math.atan2(abs(l.p1.y-l.p2.y),abs(l.p1.x-l.p2.x))) #点0を基準にした角度(0,90)
+            return math.degrees(math.atan2(abs(l.p0.y-l.p1.y),abs(l.p0.x-l.p1.x))) #点0を基準にした角度(0,90)
         return Segments([i for i in self.items if abs(deg(i)-degree)<gap])
     def selectHorizontalLine(self,gap=0.01):
         """水平線だけのLinesを生成します
@@ -233,7 +233,7 @@ with PdfExtractKit.load(path) as p2:
         for j in ll:
             c=c+1
             f=["red","green","blue"][c%3]
-            pvc.rect(j.p1.xy,j.p2.xy,fill=f,outline=None)     
+            pvc.rect(j.p0.xy,j.p1.xy,fill=f,outline=None)     
         # for j in lines[1]:
         #     print(j.height)
         #     pvc.rect((j.left,j.top),(j.right,j.bottom),fill="red",outline=None)     
