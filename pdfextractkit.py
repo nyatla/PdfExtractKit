@@ -29,6 +29,8 @@ class BoxLayout(Enum):
     """
     LEFT_TO_RIGHT=1
     TOP_TO_BOTTOM_LEFT_TO_RIGHT=2
+    TOP_TO_BOTTOM=3
+    LEFT_TO_RIGHT_TOP_TO_BOTTOM=4
 
 class BoxSet:
     class Box:
@@ -65,6 +67,8 @@ class BoxSet:
     def __init__(self,df,order=None):
         self._df=df if order is None else {
             BoxLayout.LEFT_TO_RIGHT:lambda df:df.sort_values(['left'], ascending=[True]),
+            BoxLayout.TOP_TO_BOTTOM:lambda df:df.sort_values(['top'], ascending=[False]),
+            BoxLayout.LEFT_TO_RIGHT_TOP_TO_BOTTOM:lambda df:df.sort_values(['left','top'], ascending=[True,False]),
             BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT:lambda df:df.sort_values(['top','left'], ascending=[False, True]),
         }[order](df)
     def __iter__(self):
@@ -144,16 +148,12 @@ class BoxSet:
         """テキストの一致する要素のリストを返します。
         """
         return self.select(lambda x: x.text==text) #キーの探索       
-    def traceX(self,x1,x2,y,order:BoxLayout=BoxLayout.LEFT_TO_RIGHT):
-        """onHorizontalLineのエイリアス
-        """
-        return self.onHorizontalLine(x1,x2,y,order)
     def onHorizontalLine(self,x1,x2,y,order:BoxLayout=BoxLayout.LEFT_TO_RIGHT):
-        """x1,yとx,2,yを結ぶ直線上の座標にある集合を生成します。
+        """x1,yとx,2,yを結ぶ直線と重なるオブジェクトの集合を生成します。
         """
-        return self.inBox(x1,y,x2,y,order)
-    def inBox(self,x1,y1,x2,y2,order=BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT):
-        """x1,y1とx2,y2で定義した矩形内と重なる集合を生成します。
+        return self.onBox(x1,y,x2,y,order)
+    def onBox(self,x1,y1,x2,y2,order=BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT):
+        """x1,y1とx2,y2で定義した矩形と重なる集合を生成します。
         """
         l=min(x1,x2)
         r=max(x1,x2)
@@ -162,6 +162,25 @@ class BoxSet:
         df=self._df
         df=df[(l<=df["right"]) & (df["left"]<=r)& (b<=df["top"]) & (df["bottom"]<=t)]
         return BoxSet(df,order)
+    def innerBox(self,x1,y1,x2,y2,order=BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT):
+        """x1,y1とx2,y2で定義した矩形内にある集合を生成します。
+        """
+        l=min(x1,x2)
+        r=max(x1,x2)
+        t=max(y1,y2)
+        b=min(y1,y2)
+        df=self._df
+        df=df[(l>=df["left"]) & (df["right"]<=r)& (t>=df["top"]) & (df["bottom"]>=b)]
+        return BoxSet(df,order)
+    
+    def traceX(self,x1,x2,y,order:BoxLayout=BoxLayout.LEFT_TO_RIGHT):
+        """onHorizontalLineのエイリアス
+        """
+        print("このAPIは廃止しました。onHorizontalLineを使ってください。")
+        return self.onHorizontalLine(x1,x2,y,order)
+    def inBox(self,x1,y1,x2,y2,order=BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT):
+        print("このAPIは廃止しました。onBoxを使ってください。")
+        return self.onBox(x1,y1,x2,y2,order)
 
 class Target(Enum):
     """探索するPDFオブジェクトタイプを識別するための値。
