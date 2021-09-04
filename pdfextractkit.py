@@ -22,7 +22,7 @@ from typing import List,Tuple,Union
 import pandas
 import re
 
-
+from pekgl import Rect,RectArray
 
 class BoxLayout(Enum):
     """レイアウトのソートルール。
@@ -32,8 +32,8 @@ class BoxLayout(Enum):
     TOP_TO_BOTTOM=3
     LEFT_TO_RIGHT_TOP_TO_BOTTOM=4
 
-class BoxSet:
-    class Box:
+class BoxSet(RectArray):
+    class Box(Rect):
         def __init__(self,row):
             self.r=row
         def __str__(self):
@@ -57,12 +57,6 @@ class BoxSet:
         @property
         def right(self):
             return self.r["right"]
-        @property
-        def width(self):
-            return self.right-self.left
-        @property
-        def height(self):
-            return self.top-self.bottom
 
     def __init__(self,df,order=None):
         self._df=df if order is None else {
@@ -71,16 +65,6 @@ class BoxSet:
             BoxLayout.LEFT_TO_RIGHT_TOP_TO_BOTTOM:lambda df:df.sort_values(['left','top'], ascending=[True,False]),
             BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT:lambda df:df.sort_values(['top','left'], ascending=[False, True]),
         }[order](df)
-    def __iter__(self):
-        self._itr_n=0
-        return self
-    def __next__(self):
-        n=self._itr_n
-        if n >= len(self._df):
-            raise StopIteration
-        n=n+1
-        self._itr_n=n
-        return BoxSet.Box(self._df.iloc[n-1])
     def __len__(self):
         """格納しているBox要素の数です。
         """
@@ -99,33 +83,25 @@ class BoxSet:
             pandas.set_option('display.max_rows',o[0])
             pandas.set_option('display.max_columns',o[1])
     @property
+    def bottom(self):
+        return self._df["bottom"].min()
+    @property
+    def top(self):
+        return self._df["top"].max()
+    @property
+    def left(self):
+        return self._df["left"].min()
+    @property
+    def right(self):
+        return self._df["right"].max()
+    @property
     def text(self):
         """ボックス内のテキストを先頭から連結して返します。
         """
         return "".join(self._df["text"])
-    @property
-    def bottom(self):
-        """ボックスの下端を返します。
-        """
-        return self._df["bottom"].min()
-    @property
-    def top(self):
-        """ボックスの上端を返します。
-        """
-        return self._df["top"].max()
-    @property
-    def left(self):
-        """ボックスの左端を返します。
-        """
-        return self._df["left"].min()
-    @property
-    def right(self):
-        """ボックスの右端を返します。
-        """
-        return self._df["right"].max()
     def trim(self,remove_gaps=False):
         '''
-        テキストをトリミングして、空文字列の要素をリストから除去したリストを返します。
+        ボックス内のテキストをトリミングして、空文字列の要素をリストから除去したリストを返します。
         Args:
             remove_gapsがTrueなら、文字列間の空白を除去します。
         '''
@@ -135,6 +111,10 @@ class BoxSet:
         if remove_gaps:
             df.loc[:,"text"]=[re.sub("[ \u3000]","",i) for i in df["text"]]
         return BoxSet(df)
+    def textOf(self,text):
+        """テキストが一致するBoxSetを返します。
+        """
+        return self.select(lambda x: x.text==text) #キーの探索       
     def select(self,where,order:BoxLayout=None):
         """
         要素ごとにwhereに指定した関数で評価し、trueになったリストを返します。
@@ -144,10 +124,6 @@ class BoxSet:
         """
         df=self._df[[where(i) for i in self._df.itertuples()]]
         return BoxSet(df,order)
-    def textOf(self,text):
-        """テキストの一致する要素のリストを返します。
-        """
-        return self.select(lambda x: x.text==text) #キーの探索       
     def onHorizontalLine(self,x1,x2,y,order:BoxLayout=BoxLayout.LEFT_TO_RIGHT):
         """x1,yとx,2,yを結ぶ直線と重なるオブジェクトの集合を生成します。
         """
@@ -199,9 +175,7 @@ class Page:
     def __init__(self,page):
         self._rsrcmgr = PDFResourceManager()
         self._page=page
-        device = PDFPageAggregator(self._rsrcmgr)
-        interpreter = PDFPageInterpreter(self._rsrcmgr, device)
-
+ 
     def _internal_lookup(self,laparams:LAParams,target,order=BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT):
         device = PDFPageAggregator(self._rsrcmgr, laparams=laparams)
         interpreter = PDFPageInterpreter(self._rsrcmgr, device)
@@ -291,7 +265,7 @@ class PdfExtractKit:
 
 
 
-
+from pekgl import Point,Rect
 from PIL import Image, ImageDraw
 import math
 class PreviewCanvas:
