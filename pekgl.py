@@ -273,7 +273,7 @@ class RectArray(ABC):
                 if isinstance(i,RectArray):
                     for j in i:
                         t.append(Rect.parse(j))
-                        continue
+                    continue
                 t.append(Rect.parse(i))
             return ConstRectArray(t)
         raise RuntimeError()
