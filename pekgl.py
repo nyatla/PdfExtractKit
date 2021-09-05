@@ -3,7 +3,7 @@ pdfextractkitのため幾何計算
 """
 from abc import abstractproperty
 from re import search
-from typing import List, Tuple,Union,NewType
+from typing import Callable, List, Tuple,Union,NewType
 import os,sys
 
 #%%
@@ -11,20 +11,38 @@ import os,sys
 import math
 from abc import ABC,abstractmethod
 
+def isArrayable(o:object,l:int=None):
+    t=type(o)
+    if l is None:
+        return t is tuple or t is list
+    else:
+        return (t is tuple or t is list) and len(o)==l
+def isNumeric(o):
+    t=type(o)
+    return t is float or t is int
+def isNumerics(l:Union[List[Union[int,float]],Tuple[Union[int,float]]],num=None):
+    if num!=len(l):
+        return False
+    for i in l:
+        if not isNumeric(i):
+            return False
+    return True
 Pointable=Tuple[float,float]
 class Point(ABC):
     PARSABLE=Union["Point",Pointable]
     def __str__(self) -> str:
         return str(self.xy)
-
+    @staticmethod
+    def isParsable(v):
+        return isNumerics(v,2) or isinstance(v,Point)
     @staticmethod
     def parse(v:PARSABLE):        
         t=type(v)
         if isinstance(v,Point):
             return v
-        elif (isinstance(v,list) or isinstance(v,tuple)) and len(v)==2:
+        elif isArrayable(v,2):
             return ConstPoint(v[0],v[1])
-        raise RuntimeError()    
+        raise RuntimeError("Invalid type %s"%(type(v)))     
     @property
     def xy(self)->Tuple[float,float]:
         return (self.x,self.y)
@@ -36,6 +54,7 @@ class Point(ABC):
     @abstractmethod
     def y(self):
         pass
+
 class ConstPoint(Point):
     def __init__(self,x:float,y:float):
         self._x=x
@@ -60,7 +79,7 @@ class Rect(ABC):
     def parse(v:PARSABLE):
         if isinstance(v,Rect):
             return v
-        elif (isinstance(v,list) or isinstance(v,tuple)) and len(v)==2:
+        elif isArrayable(v) and len(v)==2:
             return ConstRect(v[0],v[1])
         raise RuntimeError()    
     def __str__(self)->str:
@@ -113,6 +132,46 @@ class Rect(ABC):
             ConstSegment((l,b),(r,b)),
             ConstSegment((r,b),(r,t)),
             ConstSegment((r,t),(l,t)))
+    def isInside(self,target:Union[Point.PARSABLE,"Rect","Segment",List[Point.PARSABLE]]):
+        """対象がRECTの内側にあるかを返します。
+        Point 矩形内に座標がある場合
+        Segment 矩形内に両方の端点がある場合
+        Rect 矩形内に４点がある場合
+        List[Point.PARSABLE]
+        """
+        if isinstance(target,Point):
+            return self.left<=target.x and target.x<=self.right and self.top>=target.y and target.y>=self.bottom
+        elif isinstance(target,Rect):
+            return self.left<=target.left and target.right<=self.right and self.top>=target.top and target.bottom>=self.bottom
+        elif isinstance(target,Segment):
+            return self.left<=target.leftEdge.x and target.rightEdge.x<=self.right and self.top>=target.topEdge.y and target.bottomEdge.y>=self.bottom
+        elif Point.isParsable(target):
+            return self.isInside(Point.parse(target))
+        elif isArrayable(target):
+            for i in target:
+                if not self.isInside(Point.parse(i)):
+                    return False
+            return True
+        else:
+            raise RuntimeError("Invalid type %s"%(type(target)))   
+    def isOverwrap(self,target:"Rect.PARSABLE"):
+        """RECT同士の重なりを返します。
+        """
+        #対象がRECTと重なっているかを返します。
+        target=Rect.parse(target)
+        return not (self.right<target.left or self.left>target.right or self.top<target.bottom or self.bottom>target.top)
+    def isIntersects(self,target:"Segment.PARSABLE")->bool:
+        """Rectと線分の交差を判定する
+        """
+        target=Segment.parse(target)
+        for s in self.toSegmentList(0):
+            if target.isIntersects(s):
+                return True
+        return self.isInside(target)
+    def move(self,dx=0,dy=0)->"Rect":
+        """矩形を平行移動します。
+        """
+        return ConstRect((self.left+dx,self.top+dy),(self.right+dx,self.bottom+dy))
 
 
 
@@ -137,6 +196,8 @@ class ConstRect(Rect):
     def bottom(self):
         return self.right_bottom.y
 
+#%%
+
 class Segment(ABC):
     PARSABLE=Union["Segment",Tuple[Point.PARSABLE,Point.PARSABLE]]
     def __str__(self)->str:
@@ -145,7 +206,7 @@ class Segment(ABC):
     def parse(v:PARSABLE):
         if isinstance(v,Segment):
             return v
-        elif (isinstance(v,list) or isinstance(v,tuple)) and len(v)==2:
+        elif isArrayable(v) and len(v)==2:
             return ConstSegment(v[0],v[1])
         raise RuntimeError("Invalid type %s"%(type(v)))    
 
@@ -208,10 +269,30 @@ class Segment(ABC):
             return abs(cross2(z0, z1)) / dist2(z0)**.5
         z2 = (xy.x - p1.x, xy.y - p1.y)
         return min(dist2(z1), dist2(z2))**.5
+    def isIntersects(self,cd:"Segment.PARSABLE")->bool:
+        """線分同士の交差を判定します。"""
+        ab=self
+        cd=Segment.parse(cd)
+        a=ab.p0
+        b=ab.p1
+        c=cd.p0
+        d=cd.p1
+        s = (a.x - b.x) * (c.y - a.y) - (a.y - b.y) * (c.x - a.x)
+        t = (a.x - b.x) * (d.y - a.y) - (a.y - b.y) * (d.x - a.x)
+        if s * t > 0:
+            return False
+        s = (c.x - d.x) * (a.y - c.y) - (c.y - d.y) * (a.x - c.x)
+        t = (c.x - d.x) * (b.y - c.y) - (c.y - d.y) * (b.x - c.x)
+        if s * t > 0:
+            return False
+        return True
+
+
+
     @classmethod
     def margeSegment(cls,segment1:"Segment.PARSABLE",segment2:"Segment.PARSABLE",separategap=1,sidegap:float=1):
         """2つの線分が結合可能結合して新しい線分を返します。
-        2つの線分の並行度が閾値以下で端点同士が範囲内にある時に、合成した線分を計算するおことができます。
+        2つの線分の並行度が閾値以下で端点同士が範囲内にある時に、合成した線分を計算することができます。
         Args:
             segment1    1つめの線分
             segment2    2つめの線分
@@ -244,6 +325,10 @@ class Segment(ABC):
         if nf1+nf2>sidegap:
             return None
         return ConstSegment(far_segment.p0,far_segment.p1)
+    def move(self,dx=0,dy=0)->"Segment":
+        """矩形を平行移動します。
+        """
+        return ConstSegment((self.p0.x+dx,self.p0.y+dy),(self.p1.x+dx,self.p0.y+dy))
 
 
 class ConstSegment(Segment):
@@ -259,6 +344,12 @@ class ConstSegment(Segment):
     def p1(self):
         return self._p1
 
+
+#r=ConstRect((0,10),(10,0))
+s=ConstSegment((1,1),(9,9)).move(10,10)
+r=ConstRect((0,10),(10,0))
+print(r.isInside(((0,10),(11,0))))
+
 #%%
 
 class RectArray(ABC):
@@ -267,7 +358,7 @@ class RectArray(ABC):
     def parse(v:PARSABLE):
         if isinstance(v,RectArray):
             return v
-        elif (isinstance(v,list) or isinstance(v,tuple)):
+        elif isArrayable(v):
             t:List[Rect]=[]
             for i in v:
                 if isinstance(i,RectArray):
@@ -299,6 +390,8 @@ class RectArray(ABC):
             for j in i.toSegmentList(minwidth):
                 l.append(j)
         return ConstSegmentArray(l)        
+    def sort(self,rule:Callable)->"RectArray":
+        pass
 
 class ConstRectArray(RectArray):
     def __init__(self,src:List[Rect]):
@@ -316,7 +409,7 @@ class SegmentArray(ABC):
     def parse(v:PARSABLE):
         if isinstance(v,SegmentArray):
             return v
-        elif (isinstance(v,list) or isinstance(v,tuple)):
+        elif isArrayable(v):
             t:List[Segment]=[]
             for i in v:
                 if isinstance(i,SegmentArray):
