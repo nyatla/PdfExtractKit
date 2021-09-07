@@ -10,28 +10,28 @@ https://www.mhlw.go.jp/stf/shingi2/0000208910_00029.html
 from typing import List, Tuple,Union
 import os,sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from pdfextractkit import PdfExtractKit,Target,PreviewCanvas,BoxLayout
+from pdfextractkit import PdfExtractKit,PreviewCanvas,BoxType
 
 
 
 
-from pekgl import SegmentArray,Segment,Rect,Point,ConstSegment
-
-        
+from pekgl import SegmentList,Segment,Rect,Point,RectList
 
         
 
+        
 
 
 
 
 
 
-def findTableCells(segments:SegmentArray):
+
+def findTableCells(segments:SegmentList):
 
     #横/縦罫線を検出
-    hsegments:SegmentArray=segments.selectHorizontalLine().margedStraightLines()
-    vsegments:SegmentArray=segments.selectVerticalLine().margedStraightLines()
+    hsegments:SegmentList=segments.selectHorizontals().margedStraights()
+    vsegments:SegmentList=segments.selectVerticals().margedStraights()
 
     #横罫線の左右エッジから補完のための縦線を生成
     le:List[Point]=[i.leftEdge for i in hsegments]
@@ -44,17 +44,16 @@ def findTableCells(segments:SegmentArray):
     be:List[Point]=[i.bottomEdge for i in vsegments]
     be.sort(key=lambda k: k.x)
     #補完線と本線を結合
-    print(isinstance(hsegments,SegmentArray))
-    h=SegmentArray.parse([
+    h=SegmentList([
     hsegments,
-    SegmentArray.parse([ConstSegment(te[i],te[i+1]) for i in range(0,len(te)-1)]).margedStraightLines(0.1).selectHorizontalLine(),
-    SegmentArray.parse([ConstSegment(be[i],be[i+1]) for i in range(0,len(be)-1)]).margedStraightLines(0.1).selectHorizontalLine()
-    ]).margedStraightLines(0.3)
-    v=SegmentArray.parse([
+    SegmentList([(te[i],te[i+1]) for i in range(0,len(te)-1)]).margedStraights(0.1).selectHorizontals(),
+    SegmentList([(be[i],be[i+1]) for i in range(0,len(be)-1)]).margedStraights(0.1).selectHorizontals()
+    ]).margedStraights(0.3)
+    v=SegmentList([
     vsegments,
-    SegmentArray.parse([ConstSegment(le[i],le[i+1]) for i in range(0,len(le)-1)]).margedStraightLines(0.1).selectVerticalLine(),
-    SegmentArray.parse([ConstSegment(re[i],re[i+1]) for i in range(0,len(re)-1)]).margedStraightLines(0.1).selectVerticalLine()
-    ]).margedStraightLines(0.3)
+    SegmentList([(le[i],le[i+1]) for i in range(0,len(le)-1)]).margedStraights(0.1).selectVerticals(),
+    SegmentList([(re[i],re[i+1]) for i in range(0,len(re)-1)]).margedStraights(0.1).selectVerticals()
+    ]).margedStraights(0.3)
     #矩形グリッドの集合と仮定して、セルの矩形集合を計算する。
     rowline=[i.center.y for i in h]
     colline=[i.center.x for i in v]
@@ -74,7 +73,9 @@ with PdfExtractKit.load(path) as p2:
     p=p2[2:3]
     n=0
     for i in p:
-        all=i.extract(target=Target.RECT).toSegmentArray()
+        all=i.extract(filter=BoxType.RECT)
+        print(isinstance(all,RectList))
+        all=all.toSegmentList()
         bx=findTableCells(all)
         pvc=PreviewCanvas(i)
         c=0

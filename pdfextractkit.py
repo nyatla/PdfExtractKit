@@ -3,10 +3,8 @@ See https://blog.imind.jp/entry/2019/10/18/025658
 """
 from pdfminer.pdfparser import PDFParser
 from pdfminer.pdfdocument import PDFDocument
-from pdfminer.pdfpage import PDFPage
-from pdfminer.pdfpage import PDFTextExtractionNotAllowed
-from pdfminer.pdfinterp import PDFResourceManager
-from pdfminer.pdfinterp import PDFPageInterpreter
+from pdfminer.pdfpage import PDFPage,PDFTextExtractionNotAllowed
+from pdfminer.pdfinterp import PDFResourceManager,PDFPageInterpreter
 from pdfminer.converter import PDFPageAggregator
 from pdfminer.layout import (
     LAParams,
@@ -18,11 +16,11 @@ from pdfminer.layout import (
     LTTextLine,LTChar,LTLine
 )
 from enum import Enum
-from typing import List,Tuple,Union
+from typing import Callable, List,Tuple,Union
 import pandas
 import re
 
-from pekgl import Rect,RectArray
+from pekgl import Rect,Segment,RectList
 
 class BoxLayout(Enum):
     """レイアウトのソートルール。
@@ -31,86 +29,103 @@ class BoxLayout(Enum):
     TOP_TO_BOTTOM_LEFT_TO_RIGHT=2
     TOP_TO_BOTTOM=3
     LEFT_TO_RIGHT_TOP_TO_BOTTOM=4
+class BoxType(Enum):
+    """探索するPDFオブジェクトタイプを識別するための値。
+    """
+    CHAR =0   #テキストオブジェクト(CHAR又はTEXT)
+    TEXT =1   #テキストオブジェクト(CHAR又はTEXT)
+    RECT =2   #RECTオブジェクト
+    LINE =3
+    IMAGE=4   #画像オブジェクト
+    ANY  =5   #全てのオブジェクト
+    @staticmethod
+    def toEnum(v):
+        return      BoxType.CHAR if isinstance(v,LTChar) \
+            else    (BoxType.TEXT if isinstance(v,LTText) \
+            else    (BoxType.LINE if isinstance(v,LTLine) \
+            else    (BoxType.RECT if isinstance(v,LTRect) \
+            else    (BoxType.IMAGE if isinstance(v,LTImage) \
+            else    type(v)))))
 
-class BoxSet(RectArray):
-    class Box(Rect):
-        def __init__(self,row):
-            self.r=row
-        def __str__(self):
-            o=(
-                pandas.set_option('display.max_rows',99999),
-                pandas.set_option('display.max_columns',99999))
-            try:
-                return str(self.r)
-            finally:
-                pandas.set_option('display.max_rows',o[0])
-                pandas.set_option('display.max_columns',o[1])
-        @property
-        def bottom(self):
-            return self.r["bottom"]
-        @property
-        def top(self):
-            return self.r["top"]
-        @property
-        def left(self):
-            return self.r["left"]
-        @property
-        def right(self):
-            return self.r["right"]
+class Box(Rect):
+    def __init__(self,lt_rb,boxtype,text):
+        super().__init__(lt_rb)
+        self.text:str=text
+        self.type=type
+        return
+    def trim(self,remove_gaps=False):
+        """トリミングしたtextを返します。
+        """
+        if self.text is None:
+            return None
+        s=self.text.split()
+        if remove_gaps:
+            s=re.sub("[ \u3000]","",s)
+        return s
 
-    def __init__(self,df,order=None):
-        self._df=df if order is None else {
-            BoxLayout.LEFT_TO_RIGHT:lambda df:df.sort_values(['left'], ascending=[True]),
-            BoxLayout.TOP_TO_BOTTOM:lambda df:df.sort_values(['top'], ascending=[False]),
-            BoxLayout.LEFT_TO_RIGHT_TOP_TO_BOTTOM:lambda df:df.sort_values(['left','top'], ascending=[True,False]),
-            BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT:lambda df:df.sort_values(['top','left'], ascending=[False, True]),
-        }[order](df)
-    def __len__(self):
-        """格納しているBox要素の数です。
-        """
-        return len(self._df)        
-    def __getitem__(self,key:int):
-        """n番目のレイアウトを返します。
-        """
-        return BoxSet.Box(self._df.loc[key])
-    def __str__(self):
-        o=(
-            pandas.set_option('display.max_rows',99999),
-            pandas.set_option('display.max_columns',99999))
-        try:
-            return str(self._df)
-        finally:
-            pandas.set_option('display.max_rows',o[0])
-            pandas.set_option('display.max_columns',o[1])
-    @property
-    def bottom(self):
-        return self._df["bottom"].min()
-    @property
-    def top(self):
-        return self._df["top"].max()
-    @property
-    def left(self):
-        return self._df["left"].min()
-    @property
-    def right(self):
-        return self._df["right"].max()
+
+
+class BoxSet(RectList):
+    def __init__(self,boxset:List[Box],order=None):
+        super().__init__(boxset)
+        self._cache={}
     @property
     def text(self):
         """ボックス内のテキストを先頭から連結して返します。
         """
-        return "".join(self._df["text"])
-    def trim(self,remove_gaps=False):
-        '''
-        ボックス内のテキストをトリミングして、空文字列の要素をリストから除去したリストを返します。
-        Args:
-            remove_gapsがTrueなら、文字列間の空白を除去します。
-        '''
-        df=self._df
-        df['text'] = df['text'].map(lambda x:x.strip())
-        df=pandas.DataFrame(df[[len(i)>0  for i in df["text"]]])
-        if remove_gaps:
-            df.loc[:,"text"]=[re.sub("[ \u3000]","",i) for i in df["text"]]
-        return BoxSet(df)
+        if "text" not in self._cache:
+            self._cache["text"]="".join([i.text for i in self if i.text is not None])
+        return self._cache["text"]
+
+    def toTextBox(self):
+        """ボックスを取りまとめます。
+        結果はリストの順番で文字列を連結したTEXT包括ボックスです。
+        """
+        r=super().toRect()
+        text=[self[0].text] if  self[0] is not None else []
+        for i in self[1:]:
+           if i.text is not None:
+               text.append(i.text)
+        return Box(r.toTuple(),BoxType.TEXT,"".join(text) if len(text)>0 else None)
+
+    def selectInHorizontalSegment():
+        pass
+    def selectOnHorizontalSegment():
+        pass
+    def sortLtoR():
+        """左から右にソートします。
+        """
+        pass
+    def sortTtoB():
+        """上から下にソートします。
+        """
+        pass
+    def sortLtoRandTtoB():
+        pass
+    def sortTtoBLtoR():
+        pass
+
+   
+
+
+        
+    # def trim(self,remove_gaps=False):
+    #     '''
+    #     ボックス内のテキストをトリミングして、空文字列の要素をリストから除去したリストを返します。
+    #     Args:
+    #         remove_gapsがTrueなら、文字列間の空白を除去します。
+    #     '''
+
+    #     r=BoxSet()
+    #     for i:Box in self:
+    #         ti.text
+    #         pass
+    #     df=self._df
+    #     df['text'] = df['text'].map(lambda x:x.strip())
+    #     df=pandas.DataFrame(df[[len(i)>0  for i in df["text"]]])
+    #     if remove_gaps:
+    #         df.loc[:,"text"]=[re.sub("[ \u3000]","",i) for i in df["text"]]
+    #     return BoxSet(df)
     def textOf(self,text):
         """テキストが一致するBoxSetを返します。
         """
@@ -158,15 +173,6 @@ class BoxSet(RectArray):
         print("このAPIは廃止しました。onBoxを使ってください。")
         return self.onBox(x1,y1,x2,y2,order)
 
-class Target(Enum):
-    """探索するPDFオブジェクトタイプを識別するための値。
-    """
-    CHAR =0   #テキストオブジェクト(CHAR又はTEXT)
-    TEXT =1   #テキストオブジェクト(CHAR又はTEXT)
-    RECT =2   #RECTオブジェクト
-    LINE =3
-    IMAGE=4   #画像オブジェクト
-    ANY  =5   #全てのオブジェクト
 
 class Page:
     """Pdfの１ページに対応するクラスです。
@@ -176,32 +182,28 @@ class Page:
         self._rsrcmgr = PDFResourceManager()
         self._page=page
  
-    def _internal_lookup(self,laparams:LAParams,target,order=BoxLayout.TOP_TO_BOTTOM_LEFT_TO_RIGHT):
+    def _internal_lookup(self,laparams:LAParams,filter:Callable):
         device = PDFPageAggregator(self._rsrcmgr, laparams=laparams)
         interpreter = PDFPageInterpreter(self._rsrcmgr, device)
-        def type2Target(v):
-            return      Target.CHAR if isinstance(v,LTChar) \
-                else    (Target.TEXT if isinstance(v,LTText) \
-                else    (Target.LINE if isinstance(v,LTLine) \
-                else    (Target.RECT if isinstance(v,LTRect) \
-                else    (Target.IMAGE if isinstance(v,LTImage) \
-                else    type(v)))))
-        def get_objs(layout,d):
+        def getbox(layout,d):
+            """矩形をフラット化
+            """
             if not isinstance(layout, LTContainer):
                 return d
             for obj in layout:
-                if isinstance(obj, target):
-                    d.append([obj.bbox[0],obj.bbox[3],obj.bbox[2],obj.bbox[1],obj.get_text() if hasattr(obj,"get_text") else None,type2Target(obj)])
-                get_objs(obj,d)
+                if filter is None or not filter(obj):
+                    continue
+                d.append(Box(
+                    ((obj.bbox[0],obj.bbox[3]),(obj.bbox[2],obj.bbox[1])),
+                    BoxType.toEnum(obj),
+                    obj.get_text() if hasattr(obj,"get_text") else None
+                    ))
+                getbox(obj,d)
             return d
         interpreter.process_page(self._page)
         layout = device.get_result()
-        d=get_objs(layout,list())
-        df=pandas.DataFrame(
-            columns=["left","top","right","bottom","text","type"],
-            # dtype=[("page",int),("left",float),("top",float),("right",float),("bottom",float),("text",object)],
-            data=d)
-        return BoxSet(df,order)
+        boxes=getbox(layout,list())
+        return BoxSet(boxes)
     @property
     def mediaBox(self):
         """
@@ -209,11 +211,18 @@ class Page:
         [left,top,right,height]
         """
         return self._page.mediabox
-    def extract(self,target:Target=None):
-        """1文字単位に分解したTextBoxを生成します。
+    def extract(self,filter:Union[Callable[[object],bool],BoxType]=None):
+        """Pdfの構成要素を一次減のボックスセットに変換します。
+        Args:
+
+        filter:対象にするオブジェクトを判定するフィルタ式です。
+            Callable(x)の場合、Pdfオブジェクトの評価関数として動作します。xの評価値がtrueのものを対象にします。
+            BoxTypeの場合、抽象化されたボックス型に合致するものを対象にします。
+            (NP)List[BoxType]の場合、リストに含まれる何れかの型を対象にします。
         """
-        targetclass=LTChar if target is None else [LTChar,LTText,LTRect,LTLine,LTImage,LTItem][target.value]
-        return self._internal_lookup(None,targetclass)
+        if isinstance(filter,BoxType):
+            return self._internal_lookup(None,lambda x : BoxType.toEnum(x)==filter)
+        return self._internal_lookup(None,filter)
     def lookup(self,line_overlap=0.5, char_margin=2.0, line_margin=0.5, word_margin=0.1, boxes_flow=0.5,detect_vertical=False):
         """文字列に結合したTextBoxを生成します。
         パラメータは以下を参照。
@@ -221,6 +230,7 @@ class Page:
         @Args
             target NoneまたはLTChar
         """
+        filter=lambda x : isinstance(x,LTTextLine) #LTTextLineだけを得る
         return self._internal_lookup(LAParams(line_overlap=line_overlap,char_margin=char_margin,line_margin=line_margin,boxes_flow=boxes_flow,detect_vertical=detect_vertical,all_texts=True),LTTextLine)
 
 
