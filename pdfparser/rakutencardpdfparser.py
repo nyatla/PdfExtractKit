@@ -18,7 +18,7 @@ class RaktenCardPdfParser:
     def parse(cls,path,validationcheck=True)->Data:
         d={}
         with PdfExtractKit.load(path) as a:
-            if len(a)>3:
+            if len(a)>=3:
                 raise Exception("明細の二枚目以降のレイアウトが分からないので実装してません。")
             cls._readPage1(a[0],d)
             # for i in range(1,len(a)):
@@ -31,7 +31,6 @@ class RaktenCardPdfParser:
     def _readPage1(cls,page1,d):
         tbl=page1.lookup(word_margin=0.3).trim(True)
         table_key=tbl.textOf("利用者") #キーの探索
-
         t=page1.extract().trim(True)
         tbl=page1.extract().trim(True)
         d["ご利用カード"]=t.traceX(221,400,715).text
