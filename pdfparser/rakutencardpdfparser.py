@@ -1,6 +1,6 @@
 import os,sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from pdfextractkit import PdfExtractKit
+from libPdfextractkit import PdfExtractKit
 class RaktenCardPdfParser:
     class Data:
         def __init__(self,data):

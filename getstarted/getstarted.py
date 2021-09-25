@@ -1,10 +1,12 @@
+"""pdfextractkitを使うためのサンプルです。
+"""
 #%%
 import os,sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from pdfextractkit import PdfExtractKit
-from operator import itemgetter, attrgetter
+sys.path.append(os.path.join(os.path.dirname('__file__'), '..'))
+from libPdfextractkit import PdfExtractKit
 #データはここから　https://cio.go.jp/policy-opendata
-path=os.path.join(os.path.dirname(__file__),"data_shishingaiyou.pdf")
+print("Current directory -> "+os.getcwd())
+path=os.path.join(os.path.dirname('__file__'),"data/data_shishingaiyou.pdf")
 with PdfExtractKit.load(path) as p:
     #ページ数
     print("Pages %d"%(len(p)))

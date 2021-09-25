@@ -1,11 +1,9 @@
 #%%
 """
-pdfextractkitのため幾何計算ライブラリ
+pdfextractkitのため幾何計算クラス類を定義します。
 """
-from abc import abstractproperty
 from re import search
-from typing import Callable, Collection, Any, List, Tuple,Union,NamedTuple
-import os,sys
+from typing import Callable, Collection, Any, List, Tuple,Union
 from collections import UserList
 from collections import namedtuple
 
@@ -62,7 +60,7 @@ class BaseList(UserList):
         return r
     def filter(self,operator:Callable[[Any],Any]):
         """要素全てにoperator関数を適応して、結果がNoneでないものを新しいリストにして返します。
-        引数をそのまま返すと新しい要素にコピーされます。この関数は要素を抽出し、内容を交換するときに使います。
+        この関数は要素を抽出し、内容を交換するときに使います。引数をそのまま返すと新しい要素にコピーされます。
         引数と同じ型のオブジェクトを生成して返すと、リストの要素がその値に置き換わります。
         """
         r=self.__new__(type(self))
@@ -250,6 +248,8 @@ class Segment:
         Args:
             segment1    1つめの線分
             segment2    2つめの線分
+            separategap 再遠点の距離-２本の直線の長さ和の上限。線の分離の許容値です。
+            sidegap それぞれの線について、最近点と直線の距離の和の上限。線の並行度の許容値です。
         """
         #4点の最遠点の組み合わせを求める
         segment1=segment1 if isinstance(segment1,Segment) else Segment(segment1)
@@ -445,10 +445,6 @@ class Rect(BaseClass):
         else:
             raise RuntimeError("Invalid type %s"%(type(target)))   
 
-    def selectInside(self,key:Union["Rect.PARSABLE"])->"Rect":
-        """矩形内にある子要素を選択します。
-        """
-        return self.select(lambda b:self.isInside(b))
 
 
     def move(self,dx=0,dy=0)->"Rect":
@@ -495,11 +491,10 @@ class RectList(BaseList):
             for j in i.toSegments(minwidth):
                 l.append(j)
         return l
-    def toRect(self,rect_constructor=None):
+    def toRect(self,rect_constructor=None)->Rect:
         """包括するボックスを返します。
         """
-        if len(self)==0:
-            return None
+        assert(len(self)>0)
         l=self[0].left
         r=self[0].right
         t=self[0].top
@@ -522,6 +517,12 @@ class RectList(BaseList):
     @property
     def right(self):
         return max([i.right for i in self])
+    def selectInside(self,key:Union["Rect.PARSABLE"]):
+        """矩形内にある子要素を選択します。
+        戻り値はこのリストの格納しているRect継承クラスです。
+        """
+        key=key if isinstance(key,Rect) else Rect(key)
+        return self.select(lambda b:key.isInside(b))
 
 
 #%%
