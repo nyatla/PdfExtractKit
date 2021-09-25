@@ -149,10 +149,8 @@ class BoxSet(RectList):
         #Boxに変換
         texts=[BoxSet([j[1] for j in i]).toBox() for i in texts if len(i)>0]#水平中央線ごとにソートしてまとめたBoxes
         return BoxSet(texts)
-    def getTableReader(self):
-        """テーブル構造を読み出すためのヘルパーインスタンスを返します。
-        """
-        pass
+
+
     def textOf(self,text)->Box:
         """テキストが一致するBoxを返します。
         """

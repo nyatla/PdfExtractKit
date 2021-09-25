@@ -22,12 +22,15 @@ if __name__ == '__main__':
         #ページ数
         print("Pages %d"%(len(p)))
         n=0
-        for i in p:
-            all=i.extract()
-            sr=TableReader(all)#ページ全体をソースにしてテーブルの読み出しインスタンスを生成する
-            pvc=PreviewCanvas(i)
-            c=0
-            sr._debug_drawCells(pvc) #セルを描画
-            sr._debug_drawCellsGroups(pvc) #セルごとにグループ化した行を描画
-            pvc.show()
+        p2=p[2]
+        all=p2.extract()
+        sr=TableReader(all)#ページ全体をソースにしてテーブルの読み出しインスタンスを生成する
+        pvc=PreviewCanvas(p2)
+        c=0
+        sr._debug_drawCells(pvc) #セルを描画
+        sr._debug_drawCellsGroups(pvc) #セルごとにグループ化した行を描画
+        pvc.show()
+        #行単位で文字列を表示
+        for i in sr:
+            print(",".join([j.text for j in i]))
 #%%
