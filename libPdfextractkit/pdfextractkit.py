@@ -131,7 +131,7 @@ class BoxSet(RectList):
         """
         cl=[((i.top+i.bottom)*0.5,i) for i in self]    #水平中央線ごとにソートしてまとめた(idx,Box)
         cl.sort(key=lambda x:x[1].left)                 #leftでソート
-        cl.sort(key=itemgetter(0))                      #水平中央線でソート
+        cl.sort(key=itemgetter(0),reverse=True)                      #水平中央線でソート
         #垂直分割点の計算
         sps=([i+1 for i in range(len(cl)-1) if abs(cl[i+1][0]-cl[i][0])>rowmargin])
         sps=[0]+sps+[len(cl)]
