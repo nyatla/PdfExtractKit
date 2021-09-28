@@ -54,6 +54,19 @@ class TableReader(UserList):
                 raise RuntimeError("列数が異なる行があります。")
             self._cache["cols"]=[[self.data[r][c] for r in range(lr)] for c in range(lc)]
         return self._cache["cols"]
+    def toList(self,trim:bool=False,remove_gaps:bool=False)->List[List[List[str]]]:
+        """
+        現在のBoxSetから表を認識してPythonのリストオブジェクトに変換します。
+        Args:
+            page:
+        Returns:
+            str型の配列です。List[row][col][line]の3次元配列です。
+            lineはセル内を行単位に格納します。
+        """
+        if trim:
+            return [[[l.trim(remove_gaps) for l in c] for c in r] for r in self.rows]
+        else:
+            return [[[l.text for l in c] for c in r] for r in self.rows]
     @staticmethod
     def _detectTableMatrix(segments:SegmentList,separategap=0.1,sidegap=3)->List[List[Rect]]:
         """セグメントリストから分割のない単純テーブルを再構成します。

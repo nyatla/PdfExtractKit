@@ -17,7 +17,7 @@ if __name__ == "__main__":
             # python3 meisai01.pdf meisai02.pdf -o out.csv
     """
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument('pdf', help='探索開始位置',type=str,nargs='+')
+    parser.add_argument('pdf', help='pdfファイル名 ...',type=str,nargs='+')
     parser.add_argument('-o', help='出力ファイル名',type=str,default=None)
     args=parser.parse_args()
     dest=args.o if args.o is not None else (args.pdf[0]+("" if len(args.pdf)==1 else "(%dfiles)"%(len(args.pdf))))+".csv"
