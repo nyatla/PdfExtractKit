@@ -461,7 +461,7 @@ class Rect(BaseClass):
 
 #%%
 class RectList(BaseList):
-    PARSABLE=Union[Collection[Union[Rect.PARSABLE,"PARSABLE"]]]
+    PARSABLE=Collection[Union[Rect.PARSABLE,"PARSABLE"]]
     def __init__(self,v:Union[Rect.PARSABLE,PARSABLE]=None):
         super().__init__(v.data if isinstance(v,RectList) else RectList._parse(v))
     def __str__(self) -> str:
@@ -517,7 +517,7 @@ class RectList(BaseList):
     @property
     def right(self):
         return max([i.right for i in self])
-    def selectInside(self,key:Union["Rect.PARSABLE"]):
+    def selectInside(self,key:"Rect.PARSABLE"):
         """矩形内にある子要素を選択します。
         戻り値はこのリストの格納しているRect継承クラスです。
         """
@@ -531,7 +531,7 @@ class RectList(BaseList):
 class SegmentList(BaseList):
     """list互換のオブジェクト。
     """
-    PARSABLE=Union[Collection[Union[Segment.PARSABLE,"PARSABLE"]]]
+    PARSABLE=Collection[Union[Segment.PARSABLE,"PARSABLE"]]
     def __init__(self,v:Union[Segment.PARSABLE,PARSABLE]=None):
         super().__init__(v.data if isinstance(v,SegmentList) else SegmentList._parse(v))
     @staticmethod

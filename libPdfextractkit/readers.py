@@ -17,12 +17,11 @@ class TableReader(UserList):
     このオブジェクトは読み出し専用です。
     Args:
         src 解析対象のBoxSetです。
-        rowmargin 文字列解析のパラメータです。セル内で隣接するとみなす文字同士の最大値です。
-        sidemargin 文字列解析のパラメータです。セル内で縦方向の行間距離の最大値です。
+        rowmargin 文字列解析のパラメータです。セル内で隣接するとみなす文字間距離の最大値です。
         lineseparategap 表解析パラメータです。Segment#margedStraightsを参照してください。
         linesidegap 表解析パラメータです。Segment#margedStraightsを参照してください。        
     """
-    def __init__(self,src:BoxSet,rowmargin=1,sidemargin=3,lineseparategap=0.1,linesidegap=3):
+    def __init__(self,src:BoxSet,rowmargin=1,lineseparategap=0.1,linesidegap=3):
         segments=src.selectByType(BoxType.RECT).toSegments()
         rects=TableReader._detectTableMatrix(segments,lineseparategap,linesidegap)
         #rects内の要素ごとに読み出す

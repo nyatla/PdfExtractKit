@@ -1,0 +1,3 @@
+[submodule "app/extlibs/libNyatlanPython"]
+	path = app/extlibs/libNyatlanPython
+	url = git@github.com:nyatla/libNyatlanPython
