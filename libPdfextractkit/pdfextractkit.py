@@ -115,7 +115,8 @@ class BoxSet(RectList):
             l=Segment((key[0],key[2]),(key[1],key[2]))
         elif Segment.isParsable(key):
             l=Segment(key)
-        return self.select(lambda b: b.isOverwrap(l)).arrangeLR().toBox()
+        r=self.select(lambda b: b.isOverwrap(l)).arrangeLR()
+        return None if len(r)==0 else r.toBox()
     def readBox(self,key:Union[Rect.PARSABLE])->Box:
         """矩形内の矩形を１つのBoxにまとめます。
         """
