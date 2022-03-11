@@ -7,6 +7,8 @@
 pip install pdfminer pandas
 ```
 
+appのextlibsにsubmoduleがあります。
+
 ## アプリケーション
 
 ### イオンカード電子明細をCSVに変換
