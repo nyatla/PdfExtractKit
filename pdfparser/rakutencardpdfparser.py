@@ -42,7 +42,8 @@ class RaktenCardPdfParser:
         while l>100:
             ymd=t.traceX(31,60,l).text
             if len("".join(ymd))==0:
-                l=l-14.04
+                #次の日付をスキャンする。
+                l=l-1
                 continue
             paid=t.traceX(65,210. ,l).text
             destination=t.traceX(215,241,l).text
@@ -66,7 +67,7 @@ class RaktenCardPdfParser:
         while l>100:
             ymd=t.traceX(31,60,l).text
             if len("".join(ymd))==0:
-                l=l-14.04
+                l=l-1
                 continue
             paid=t.traceX(65,210. ,l).text
             destination=t.traceX(215,241,l).text

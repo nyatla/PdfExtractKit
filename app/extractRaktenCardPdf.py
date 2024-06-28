@@ -1,9 +1,8 @@
 #!/bin/python3
 import os,sys
-sys.path.append(os.path.join(os.path.dirname("__file__"), '..'))
+sys.path.append((os.path.join(os.path.abspath(os.path.dirname(__file__)), '..')))
 from libPdfextractkit import *
 from pdfparser import RaktenCardPdfParser
-
 
 import argparse
 import csv

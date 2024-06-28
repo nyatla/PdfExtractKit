@@ -15,7 +15,7 @@ from datetime import date
 from tqdm import tqdm
 from logging import addLevelName
 import os,sys
-sys.path.append(os.path.join(os.path.dirname("__file__"), '..'))
+sys.path.append((os.path.join(os.path.abspath(os.path.dirname(__file__)), '..')))
 
 from typing import Collection,List, Tuple
 from libPdfextractkit import Box, PdfExtractKit,PreviewCanvas,BoxType,BoxSet,TableReader,Page
